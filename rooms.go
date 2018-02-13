@@ -1,5 +1,7 @@
 package oldschool
 
+import "log"
+
 var (
 	start = makeRoom(
 		"Utanför grottan",
@@ -42,16 +44,20 @@ func init() {
 		return []*room{start}
 	}
 	cave.actions = func(s state) []string {
-		for thing := range s.held() {
-			if thing == "Släckt ficklampa" {
-				if s.action() == "Tänd ficklampan" {
-					delete(s.held(), "Släckt ficklampa")
-					s.held()["Tänd ficklampa"] = true
-					return []string{"Släck ficklampan"}
-				} else {
-					return []string{"Tänd ficklampan"}
-				}
+		if s.held()["Släckt ficklampa"] {
+			if s.action() == "Tänd ficklampan" {
+				s.swapHeld("Släckt ficklampa", "Tänd ficklampa")
+				log.Printf("swapped lamp, held are %+v", s.held())
 			}
+		} else if s.held()["Tänd ficklampa"] {
+			if s.action() == "Släck ficklampan" {
+				s.swapHeld("Tänd ficklampa", "Släckt ficklampa")
+			}
+		}
+		if s.held()["Släckt ficklampa"] {
+			return []string{"Tänd ficklampan"}
+		} else if s.held()["Tänd ficklampa"] {
+			return []string{"Släck ficklampan"}
 		}
 		return nil
 	}

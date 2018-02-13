@@ -19,7 +19,7 @@ type state struct {
 	s *sessions.Session
 }
 
-func (s state) held() map[string]bool {
+func (s *state) held() map[string]bool {
 	if _, found := s.s.Values["held"]; !found {
 		s.s.Values["held"] = map[string]bool{
 			"Släckt ficklampa": true,
@@ -28,8 +28,17 @@ func (s state) held() map[string]bool {
 	return s.s.Values["held"].(map[string]bool)
 }
 
-func (s state) action() string {
+func (s *state) action() string {
 	return s.r.Form.Get("action")
+}
+
+func (s *state) swapHeld(a, b string) {
+	delete(s.held(), a)
+	s.held()[b] = true
+}
+
+func (s *state) save() error {
+	return s.s.Save(s.r, s.w)
 }
 
 type room struct {
@@ -106,6 +115,9 @@ func (ro *room) render(w http.ResponseWriter, r *http.Request) {
 		thingsUL = append(thingsUL, fmt.Sprintf("<li>%s</li>", thing))
 	}
 
+	s.save()
+
+	w.Header().Add("Content-Type", "text/html; charset=UTF-8")
 	fmt.Fprintf(w, `
 <html>
 <head>
@@ -163,12 +175,47 @@ body {
 }
 
 func root(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/html; charset=UTF-8")
+	session, err := store.Get(r, "oldschool")
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	location := r.Form.Get("location")
+
+	s := &state{
+		w: w,
+		r: r,
+		s: session,
+	}
+	if location := r.Form.Get("location"); location != "" {
+		s.s.Values["location"] = location
+	}
+	if action := r.Form.Get("action"); action != "" {
+		s.s.Values["action"] = action
+	}
+
+	if r.Method == "POST" {
+		if err := s.save(); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		http.Redirect(w, r, "/", 303)
+		return
+	}
+
+	if action, found := s.s.Values["action"]; found {
+		s.r.Form.Set("action", action.(string))
+		delete(s.s.Values, "action")
+	}
+
+	location, ok := s.s.Values["location"].(string)
+	if !ok {
+		s.s.Values["location"] = "Utanför grottan"
+	}
 	if source, found := rooms[location]; found {
 		source.render(w, r)
 	} else {
