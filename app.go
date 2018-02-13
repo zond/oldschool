@@ -72,10 +72,6 @@ func (ro *room) render(w http.ResponseWriter, r *http.Request) {
 	}
 
 	thingsUL := []string{}
-	for thing := range s.held() {
-		thingsUL = append(thingsUL, fmt.Sprintf("<li>%s</li>", thing))
-	}
-
 	exitsUL := []string{}
 	for _, exit := range ro.exits(s) {
 		exitsUL = append(
@@ -104,6 +100,10 @@ func (ro *room) render(w http.ResponseWriter, r *http.Request) {
 	descDIVs := []string{}
 	for _, line := range ro.desc(s) {
 		descDIVs = append(descDIVs, fmt.Sprintf("<div>%s</div>", line))
+	}
+
+	for thing := range s.held() {
+		thingsUL = append(thingsUL, fmt.Sprintf("<li>%s</li>", thing))
 	}
 
 	fmt.Fprintf(w, `
