@@ -1,17 +1,27 @@
 package oldschool
 
 import (
+	"encoding/gob"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/sessions"
 )
 
 var (
-	rooms = map[string]*room{}
-	store = sessions.NewCookieStore([]byte("session-key"))
+	rooms         = map[string]*room{}
+	things        = map[string]*thing{}
+	store         = sessions.NewCookieStore([]byte("session-key"))
+	defaultRoom   *room
+	defaultThings map[string]bool
 )
+
+func init() {
+	gob.Register(map[string]bool{})
+}
 
 type state struct {
 	w http.ResponseWriter
@@ -19,12 +29,11 @@ type state struct {
 	s *sessions.Session
 }
 
+func (s *state) String() string {
+	return fmt.Sprintf("%+v", s.s)
+}
+
 func (s *state) held() map[string]bool {
-	if _, found := s.s.Values["held"]; !found {
-		s.s.Values["held"] = map[string]bool{
-			"Släckt ficklampa": true,
-		}
-	}
 	return s.s.Values["held"].(map[string]bool)
 }
 
@@ -43,44 +52,90 @@ func (s *state) save() error {
 
 type room struct {
 	title   string
-	desc    func(state) []string
-	exits   func(state) []*room
-	actions func(state) []string
+	desc    func(*state) []string
+	exits   func(*state) []*room
+	actions func(*state) map[string]func(*state)
 }
 
 func makeRoom(
 	title string,
-	desc func(state) []string,
+	desc func(*state) []string,
 ) *room {
 	r := &room{
 		title: title,
 		desc:  desc,
-		exits: func(s state) []*room {
+		exits: func(s *state) []*room {
 			return nil
 		},
-		actions: func(s state) []string {
-			return nil
+		actions: func(s *state) map[string]func(*state) {
+			return map[string]func(*state){}
 		},
 	}
 	rooms[r.title] = r
 	return r
 }
 
-func (ro *room) render(w http.ResponseWriter, r *http.Request) {
-	session, err := store.Get(r, "oldschool")
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	defer session.Save(r, w)
+type thing struct {
+	name    string
+	actions func(*state) map[string]func(*state)
+}
 
-	s := state{
-		w: w,
-		r: r,
-		s: session,
+func makeThing(
+	name string,
+) *thing {
+	t := &thing{
+		name: name,
+		actions: func(s *state) map[string]func(*state) {
+			return map[string]func(*state){}
+		},
+	}
+	things[t.name] = t
+	return t
+}
+
+func (ro *room) render(s *state) {
+	if action, ok := s.s.Values["roomAction"].(string); ok && action != "" {
+		if f, found := ro.actions(s)[action]; found {
+			f(s)
+		}
 	}
 
-	thingsUL := []string{}
+	if action, ok := s.s.Values["thingAction"].(string); ok && action != "" {
+		if th, found := things[s.s.Values["thing"].(string)]; found {
+			if f, found := th.actions(s)[action]; found {
+				f(s)
+			}
+		}
+	}
+
+	actionsUL := []string{}
+	for action := range ro.actions(s) {
+		actionsUL = append(
+			actionsUL,
+			fmt.Sprintf(
+				"<li><form method='post' action='/'><input type='hidden' name='location' value='%s'><input type='hidden' name='roomAction' value='%s'><input type='submit' value='%s'></form></li>",
+				ro.title,
+				action,
+				action,
+			),
+		)
+	}
+
+	for th := range s.held() {
+		for action := range things[th].actions(s) {
+			actionsUL = append(
+				actionsUL,
+				fmt.Sprintf(
+					"<li><form method='post' action='/'><input type='hidden' name='location' value='%s'><input type='hidden' name='thingAction' value='%s'><input type='submit' value='%s'><input type='hidden' name='thing' value='%s'></form></li>",
+					ro.title,
+					action,
+					action,
+					th,
+				),
+			)
+		}
+	}
+
 	exitsUL := []string{}
 	for _, exit := range ro.exits(s) {
 		exitsUL = append(
@@ -93,32 +148,20 @@ func (ro *room) render(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	actionsUL := []string{}
-	for _, action := range ro.actions(s) {
-		actionsUL = append(
-			actionsUL,
-			fmt.Sprintf(
-				"<li><form method='post' action='/'><input type='hidden' name='location' value='%s'><input type='hidden' name='action' value='%s'><input type='submit' value='%s'></form></li>",
-				ro.title,
-				action,
-				action,
-			),
-		)
-	}
-
 	descDIVs := []string{}
 	for _, line := range ro.desc(s) {
 		descDIVs = append(descDIVs, fmt.Sprintf("<div>%s</div>", line))
 	}
 
+	thingsUL := []string{}
 	for thing := range s.held() {
 		thingsUL = append(thingsUL, fmt.Sprintf("<li>%s</li>", thing))
 	}
 
 	s.save()
 
-	w.Header().Add("Content-Type", "text/html; charset=UTF-8")
-	fmt.Fprintf(w, `
+	s.w.Header().Add("Content-Type", "text/html; charset=UTF-8")
+	fmt.Fprintf(s.w, `
 <html>
 <head>
 <title>%s</title>
@@ -140,8 +183,8 @@ body {
 		ro.title,
 		strings.Join(descDIVs, ""),
 	)
-	if len(actionsUL) > 0 {
-		fmt.Fprintf(w, `
+	if len(thingsUL) > 0 {
+		fmt.Fprintf(s.w, `
 <h3>Du har</h3>
 <ul>
 %s
@@ -150,7 +193,7 @@ body {
 			strings.Join(thingsUL, ""))
 	}
 	if len(actionsUL) > 0 {
-		fmt.Fprintf(w, `
+		fmt.Fprintf(s.w, `
 <h3>Du kan</h3>
 <ul>
 %s
@@ -159,7 +202,7 @@ body {
 			strings.Join(actionsUL, ""))
 	}
 	if len(exitsUL) > 0 {
-		fmt.Fprintf(w, `
+		fmt.Fprintf(s.w, `
 <h3>Du kan gå till</h3>
 <ul>
 %s
@@ -167,7 +210,7 @@ body {
 `,
 			strings.Join(exitsUL, ""))
 	}
-	fmt.Fprintf(w, `
+	fmt.Fprintf(s.w, `
 </body>
 </html>
 `)
@@ -180,6 +223,20 @@ func root(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+	log.Printf("Got session %+v", session)
+
+	saveOnce := &sync.Once{}
+	saveSession := func() {
+		saveOnce.Do(func() {
+			log.Printf("Saving session %+v", session)
+			if err := session.Save(r, w); err != nil {
+				http.Error(w, err.Error(), 500)
+				panic(err)
+			}
+		})
+	}
+
+	defer saveSession()
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), 500)
@@ -194,15 +251,17 @@ func root(w http.ResponseWriter, r *http.Request) {
 	if location := r.Form.Get("location"); location != "" {
 		s.s.Values["location"] = location
 	}
-	if action := r.Form.Get("action"); action != "" {
-		s.s.Values["action"] = action
+	if action := r.Form.Get("roomAction"); action != "" {
+		s.s.Values["roomAction"] = action
+	}
+	if action := r.Form.Get("thingAction"); action != "" {
+		s.s.Values["thingAction"] = action
+		s.s.Values["thing"] = r.Form.Get("thing")
 	}
 
 	if r.Method == "POST" {
-		if err := s.save(); err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
+		saveSession()
+		log.Println("Redirect due to POST")
 		http.Redirect(w, r, "/", 303)
 		return
 	}
@@ -212,14 +271,21 @@ func root(w http.ResponseWriter, r *http.Request) {
 		delete(s.s.Values, "action")
 	}
 
+	_, ok := s.s.Values["held"].(map[string]bool)
+	if !ok {
+		s.s.Values["held"] = defaultThings
+		saveSession()
+	}
 	location, ok := s.s.Values["location"].(string)
 	if !ok {
-		s.s.Values["location"] = "Utanför grottan"
+		s.s.Values["location"] = defaultRoom.title
+		saveSession()
 	}
+
 	if source, found := rooms[location]; found {
-		source.render(w, r)
+		source.render(s)
 	} else {
-		start.render(w, r)
+		http.Error(w, "Gulp", 500)
 	}
 }
 

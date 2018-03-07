@@ -2,10 +2,10 @@ package oldschool
 
 import "log"
 
-var (
-	start = makeRoom(
+func init() {
+	start := makeRoom(
 		"Utanför grottan",
-		func(s state) []string {
+		func(s *state) []string {
 			return []string{
 				"Du står på en stig i en granskog.",
 				"Solen tittar blygt fram mellan träden ovanför dig.",
@@ -14,9 +14,10 @@ var (
 			}
 		},
 	)
-	cave = makeRoom(
+	defaultRoom = start
+	cave := makeRoom(
 		"Grottan",
-		func(s state) []string {
+		func(s *state) []string {
 			if s.held()["Tänd ficklampa"] {
 				return []string{
 					"Du är inne i en grotta.",
@@ -33,32 +34,31 @@ var (
 			}
 		},
 	)
-)
-
-func init() {
-	start.exits = func(s state) []*room {
+	start.exits = func(s *state) []*room {
 		return []*room{cave}
 	}
-	cave.exits = func(s state) []*room {
-
+	cave.exits = func(s *state) []*room {
 		return []*room{start}
 	}
-	cave.actions = func(s state) []string {
-		if s.held()["Släckt ficklampa"] {
-			if s.action() == "Tänd ficklampan" {
-				s.swapHeld("Släckt ficklampa", "Tänd ficklampa")
-				log.Printf("swapped lamp, held are %+v", s.held())
-			}
-		} else if s.held()["Tänd ficklampa"] {
-			if s.action() == "Släck ficklampan" {
-				s.swapHeld("Tänd ficklampa", "Släckt ficklampa")
-			}
+
+	lightOn := makeThing("Tänd ficklampa")
+	lightOff := makeThing("Släckt ficklampa")
+	defaultThings = map[string]bool{
+		lightOff.name: true,
+	}
+	lightOn.actions = func(s *state) map[string]func(*state) {
+		return map[string]func(*state){
+			"Släck ficklampan": func(s *state) {
+				s.swapHeld(lightOn.name, lightOff.name)
+			},
 		}
-		if s.held()["Släckt ficklampa"] {
-			return []string{"Tänd ficklampan"}
-		} else if s.held()["Tänd ficklampa"] {
-			return []string{"Släck ficklampan"}
+	}
+	lightOff.actions = func(s *state) map[string]func(*state) {
+		return map[string]func(*state){
+			"Tänd ficklampan": func(s *state) {
+				log.Println("state", s)
+				s.swapHeld(lightOff.name, lightOn.name)
+			},
 		}
-		return nil
 	}
 }
