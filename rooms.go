@@ -1,7 +1,5 @@
 package oldschool
 
-import "log"
-
 func init() {
 	start := makeRoom(
 		"Utanför grottan",
