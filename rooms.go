@@ -8,7 +8,7 @@ func init() {
 		func(s *state) []string {
 			return []string{
 				"Du står på en stig i en granskog.",
-				"Solen tittar blygt fram mellan träden ovanför dig.",
+				"Solen tittar fram mellan träden ovanför dig.",
 				"Bakom dig finns en klippa med en mörk grottöppning.",
 				"Framför dig fortsätter stigen djupare in i skogen.",
 			}
