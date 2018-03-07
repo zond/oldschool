@@ -280,6 +280,7 @@ func root(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		s.s.Values["location"] = defaultRoom.title
 		saveSession()
+		location = defaultRoom.title
 	}
 
 	if source, found := rooms[location]; found {
