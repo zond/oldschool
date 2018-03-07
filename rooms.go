@@ -56,7 +56,6 @@ func init() {
 	lightOff.actions = func(s *state) map[string]func(*state) {
 		return map[string]func(*state){
 			"Tänd ficklampan": func(s *state) {
-				log.Println("state", s)
 				s.swapHeld(lightOff.name, lightOn.name)
 			},
 		}
