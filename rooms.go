@@ -178,11 +178,7 @@ func init() {
 		return []*room{start}
 	}
 	darkStairs.exits = func(s *state) []*room {
-		exits := []*room{}
-		if s.held()[lightOn.name] {
-			exits = append(exits, ghostCastle)
-		}
-		return exits
+		return []*room{ghostCastle}
 	}
 	ghostCastle.exits = func(s *state) []*room {
 		exits := []*room{start}
