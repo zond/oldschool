@@ -13,17 +13,62 @@ func init() {
 			}
 		},
 	)
+	sword := makeThing("Svärd")
+	libraryNook := makeRoom(
+		"Vrå bredvid biblioteket",
+		func(s *state) []string {
+			return []string{
+				"Du har krupit in i en liten vrå bredvid biblioteket.",
+				"Den är precis stor nog för dig, här får inga drakar plats.",
+				"Det luktar lite unket, och det enda ljuset kommer in under dörren ut till biblioteket.",
+			}
+		},
+	)
 	defaultRoom = start
+	castleLibrary := makeRoom(
+		"Spökbiblioteket",
+		func(s *state) []string {
+			rval := []string{
+				"Du står i ett jättestort bibliotek.",
+				"Det är bokhyllor och böcker så långt du kan se, och flera våningar högt.",
+				"Bredvid dig ser du en riddarrustning med ett svärd.",
+			}
+			if s.s.Values["roomAction"] == "Ta svärdet från rustningen" {
+				rval = append(rval, "En av bokhyllorna glider undan med ett skrapande rasslande och du ser en liten dörr skymta fram bakom.")
+			}
+			if s.s.Values["roomAction"] == "Slå draken med svärdet" {
+				rval = append(rval, "Draken väser till av skräck och flyger iväg över bokhyllorna.")
+			} else {
+				if s.s.Values["dragonState"] == "gone" {
+					rval = append(rval, "Du ser spår i dammet efter något stort djur, eller monster?")
+				} else {
+					rval = append(
+						rval,
+						"Framför dig står en stor grön drake med gul mage, gula vingar och taggar längs hela kroppen.",
+						"Draken kommer emot dig. Den vrålar och du känner dess stinkande andedräkt.",
+					)
+				}
+			}
+			return rval
+		},
+	)
+	smallRock := makeThing("En liten sten")
+	castleKey := makeThing("En slottsnyckel")
 	ghostCastle := makeRoom(
 		"Spökslottet",
 		func(s *state) []string {
 			desc := []string{
 				"Under de höga tornen ser du höga fönster och ett par stora dörrar som vaktas av riddarstatyer.",
-				"När du närmar dig så ser du hur statyerna flyttar sig så att de står framför dörren.",
 				"Mellan riddarstatyerna ser du en nyckel i ett hål.",
 			}
 			if s.s.Values["rockPos"] == "hole" {
 				desc = append(desc, "I hålet ligger också en liten sten.")
+			}
+			if s.s.Values["roomAction"] == "Ta nyckeln från hålet" && s.s.Values["rockPos"] != "hole" {
+				desc = append(desc, "Riddarstatyerna slår undan din hand när du försöker ta nyckeln.")
+			}
+			if !s.held()[castleKey.name] {
+				desc = append(desc, "När du närmar dig så ser du hur statyerna flyttar sig så att de står framför dörren.")
 			}
 			return desc
 		},
@@ -53,7 +98,38 @@ func init() {
 	cave.exits = func(s *state) []*room {
 		return []*room{start}
 	}
-	smallRock := makeThing("En liten sten")
+	ghostCastle.exits = func(s *state) []*room {
+		if s.held()[castleKey.name] {
+			return []*room{start, castleLibrary}
+		} else {
+			return []*room{start}
+		}
+	}
+	castleLibrary.exits = func(s *state) []*room {
+		if s.held()[sword.name] {
+			return []*room{ghostCastle, libraryNook}
+		} else {
+			return []*room{ghostCastle}
+		}
+	}
+	castleLibrary.actions = func(s *state) map[string]func(*state) {
+		if !s.held()[sword.name] {
+			return map[string]func(*state){
+				"Ta svärdet från rustningen": func(s *state) {
+					s.held()[sword.name] = true
+				},
+			}
+		} else {
+			return map[string]func(*state){
+				"Slå draken med svärdet": func(s *state) {
+					s.s.Values["dragonState"] = "gone"
+				},
+			}
+		}
+	}
+	libraryNook.exits = func(s *state) []*room {
+		return []*room{castleLibrary}
+	}
 	smallRock.actions = func(s *state) map[string]func(*state) {
 		if s.s.Values["location"] == ghostCastle.title && s.held()[smallRock.name] {
 			return map[string]func(*state){
@@ -67,15 +143,23 @@ func init() {
 		}
 	}
 	ghostCastle.actions = func(s *state) map[string]func(*state) {
-		if !s.held()[smallRock.name] && s.s.Values["rockPos"] != "hole" {
-			return map[string]func(*state){
-				"Plocka upp en sten från marken": func(s *state) {
-					s.held()[smallRock.name] = true
-				},
+		rval := map[string]func(*state){}
+		if !s.held()[castleKey.name] {
+			if s.s.Values["rockPos"] == "hole" {
+				rval["Ta nyckeln från hålet"] = func(s *state) {
+					s.held()[castleKey.name] = true
+				}
+			} else {
+				rval["Ta nyckeln från hålet"] = func(s *state) {
+				}
 			}
-		} else {
-			return map[string]func(*state){}
 		}
+		if !s.held()[smallRock.name] && s.s.Values["rockPos"] != "hole" {
+			rval["Plocka upp en sten från marken"] = func(s *state) {
+				s.held()[smallRock.name] = true
+			}
+		}
+		return rval
 	}
 
 	lightOn := makeThing("Tänd ficklampa")
