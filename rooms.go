@@ -1,6 +1,8 @@
 package oldschool
 
 func init() {
+	lightOn := makeThing("Tänd ficklampa")
+	lightOff := makeThing("Släckt ficklampa")
 	start := makeRoom(
 		"Utanför grottan",
 		func(s *state) []string {
@@ -31,7 +33,7 @@ func init() {
 		func(s *state) []string {
 			return []string{
 				"Du går genom en dammig och mörk gammal korridor.",
-				"Längs väggarna står murkna gamla möbler dammiga vita lakan liggande över.",
+				"Längs väggarna står murkna gamla möbler dammiga vita med lakan liggande över.",
 				"I hörnen är stora spindelnät med jättestora spindlar i.",
 			}
 		},
@@ -39,16 +41,50 @@ func init() {
 	ghostBedroom := makeRoom(
 		"Spöksovrummet",
 		func(s *state) []string {
-			rval := []string{
-				"Du är i en sovsal med våningssängar längs väggarna.",
-				"I sängarna sitter och ligger drösvis med spöken.",
-				"Spökerna skriker av glädje när de ser dig.",
+			rval := []string{}
+			if s.s.Values["ghostInstructions"] == "yes" {
+				rval = []string{
+					"Du är i en sovsal med våningssängar längs väggarna.",
+					"En del spöken, bleka och urvattnade, svävar runt mellan sängarna.",
+				}
+			} else {
+				rval = []string{
+					"Du är i en sovsal med våningssängar längs väggarna.",
+					"I sängarna sitter och ligger drösvis med spöken.",
+					"Spökerna skriker av glädje när de ser dig.",
+				}
 			}
-			if s.s.Values["roomAction"] == "Prata med spökena" {
+			if s.s.Values["roomAction"] == "Prata med spökena." {
 				rval = append(rval, "Det största och läskigaste spöket berättar att de inte vågat gå ut ur det här rummet på 200 år eftersom de är så rädda för draken.", "Nu är de jätteglada för att du kommit och kan skrämma bort draken från biblioteket.")
 			}
 			if s.s.Values["roomAction"] == "Berätta för spökena att draken smitit från biblioteket." {
-				rval = append(rval, "Spökena blir ännu gladare, och börjar skrika av glädje igen.", "Men, berättar det största och läskigaste spöket, vi undrar om du kunde hjälpa oss lite till?", "Draken har flytt till sin skattkammare, och vi vill gärna ha hela slottet för oss själva.", "Kan du kanske skrämma bort draken från skattkammaren också?", "Spöket ler som en bilförsäljare.")
+				rval = append(
+					rval,
+					"Spökena blir ännu gladare, och börjar skrika av glädje igen.",
+					"Men, berättar det största och läskigaste spöket, vi undrar om du kunde hjälpa oss lite till?",
+					"Draken har flytt till sin skattkammare, och vi vill gärna ha hela slottet för oss själva.",
+					"Kan du kanske skrämma bort draken från skattkammaren också?",
+					"Spöket ler som en bilförsäljare och börjar, tillsammans med alla de andra spökena, blekna bort.")
+			}
+			if s.s.Values["roomAction"] == "Fråga spökena hur man hittar till skattkammaren." {
+				rval = append(
+					rval,
+					"Spökena viskar nästan ohörbart: Följ den gröööönaaa sooooleeeen...",
+				)
+			}
+			return rval
+		},
+	)
+	darkStairs := makeRoom(
+		"Den mörka trappan",
+		func(s *state) []string {
+			rval := []string{
+				"Du står i en mörk och brant trappa.",
+			}
+			if s.held()[lightOn.name] {
+				rval = append(rval, "Ficklampan lyser upp trappan och den ser väldigt brant och hal ut.")
+			} else {
+				rval = append(rval, "Det är kolmörkt, och du ser inget alls.", "Se upp så att du inte snubblar!")
 			}
 			return rval
 		},
@@ -61,10 +97,10 @@ func init() {
 				"Det är bokhyllor och böcker så långt du kan se, och flera våningar högt.",
 				"Bredvid dig ser du en riddarrustning med ett svärd.",
 			}
-			if s.s.Values["roomAction"] == "Ta svärdet från rustningen" {
+			if s.s.Values["roomAction"] == "Ta svärdet från rustningen." {
 				rval = append(rval, "En av bokhyllorna glider undan med ett skrapande rasslande och du ser en liten dörr skymta fram bakom.")
 			}
-			if s.s.Values["roomAction"] == "Slå draken med svärdet" {
+			if s.s.Values["roomAction"] == "Slå draken med svärdet." {
 				rval = append(rval, "Draken väser till av skräck och flyger iväg över bokhyllorna.")
 			} else {
 				if s.s.Values["dragonState"] == "gone" {
@@ -92,11 +128,26 @@ func init() {
 			if s.s.Values["rockPos"] == "hole" {
 				desc = append(desc, "I hålet ligger också en liten sten.")
 			}
-			if s.s.Values["roomAction"] == "Ta nyckeln från hålet" && s.s.Values["rockPos"] != "hole" {
+			if s.s.Values["roomAction"] == "Ta nyckeln från hålet." && s.s.Values["rockPos"] != "hole" {
 				desc = append(desc, "Riddarstatyerna slår undan din hand när du försöker ta nyckeln.")
 			}
 			if !s.held()[castleKey.name] {
 				desc = append(desc, "När du närmar dig så ser du hur statyerna flyttar sig så att de står framför dörren.")
+			}
+			if s.s.Values["greenSun"] == "yes" {
+				desc = append(
+					desc,
+					"Det är ett väldigt konstigt grönt ljus som skiner uppe i himlen, nästan som en grön sol.",
+					"Ljuset får det högsta tornet på slottet att kasta en skugga mot en stenvägg.",
+					"Skuggan pekar på en väldigt liten diskret knapp på väggen.",
+				)
+
+			}
+			if s.s.Values["roomAction"] == "Tryck in den lilla knappen." {
+				desc = append(
+					desc,
+					"Med ett mäktigt muller så glider en stor sten i muren undan och avslöjar en trappa ner i en mörk och kuslig gång.",
+				)
 			}
 			return desc
 		},
@@ -126,12 +177,22 @@ func init() {
 	cave.exits = func(s *state) []*room {
 		return []*room{start}
 	}
-	ghostCastle.exits = func(s *state) []*room {
-		if s.held()[castleKey.name] {
-			return []*room{start, castleLibrary}
-		} else {
-			return []*room{start}
+	darkStairs.exits = func(s *state) []*room {
+		exits := []*room{}
+		if s.held()[lightOn.name] {
+			exits = append(exits, ghostCastle)
 		}
+		return exits
+	}
+	ghostCastle.exits = func(s *state) []*room {
+		exits := []*room{start}
+		if s.held()[castleKey.name] {
+			exits = append(exits, castleLibrary)
+		}
+		if s.s.Values["buttonPressed"] == "yes" {
+			exits = append(exits, darkStairs)
+		}
+		return exits
 	}
 	castleLibrary.exits = func(s *state) []*room {
 		if s.held()[sword.name] {
@@ -143,7 +204,7 @@ func init() {
 	castleLibrary.actions = func(s *state) map[string]func(*state) {
 		if !s.held()[sword.name] {
 			return map[string]func(*state){
-				"Ta svärdet från rustningen": func(s *state) {
+				"Ta svärdet från rustningen.": func(s *state) {
 					s.held()[sword.name] = true
 				},
 			}
@@ -151,7 +212,7 @@ func init() {
 			return map[string]func(*state){}
 		} else {
 			return map[string]func(*state){
-				"Slå draken med svärdet": func(s *state) {
+				"Slå draken med svärdet.": func(s *state) {
 					s.s.Values["dragonState"] = "gone"
 				},
 			}
@@ -168,11 +229,17 @@ func init() {
 	}
 	ghostBedroom.actions = func(s *state) map[string]func(*state) {
 		rval := map[string]func(*state){
-			"Prata med spökena": func(s *state) {
+			"Prata med spökena.": func(s *state) {
 			},
 		}
-		if s.s.Values["dragonState"] == "gone" {
+		if s.s.Values["dragonState"] == "gone" && s.s.Values["ghostInstructions"] != "yes" {
 			rval["Berätta för spökena att draken smitit från biblioteket."] = func(s *state) {
+				s.s.Values["ghostInstructions"] = "yes"
+			}
+		}
+		if s.s.Values["ghostInstructions"] == "yes" {
+			rval["Fråga spökena hur man hittar till skattkammaren."] = func(s *state) {
+				s.s.Values["greenSun"] = "yes"
 			}
 		}
 		return rval
@@ -180,7 +247,7 @@ func init() {
 	smallRock.actions = func(s *state) map[string]func(*state) {
 		if s.s.Values["location"] == ghostCastle.title && s.held()[smallRock.name] {
 			return map[string]func(*state){
-				"Lägg stenen i hålet mellan riddarna": func(s *state) {
+				"Lägg stenen i hålet mellan riddarna.": func(s *state) {
 					s.s.Values["rockPos"] = "hole"
 					delete(s.held(), smallRock.name)
 				},
@@ -193,37 +260,40 @@ func init() {
 		rval := map[string]func(*state){}
 		if !s.held()[castleKey.name] {
 			if s.s.Values["rockPos"] == "hole" {
-				rval["Ta nyckeln från hålet"] = func(s *state) {
+				rval["Ta nyckeln från hålet."] = func(s *state) {
 					s.held()[castleKey.name] = true
 				}
 			} else {
-				rval["Ta nyckeln från hålet"] = func(s *state) {
+				rval["Ta nyckeln från hålet."] = func(s *state) {
 				}
 			}
 		}
 		if !s.held()[smallRock.name] && s.s.Values["rockPos"] != "hole" {
-			rval["Plocka upp en sten från marken"] = func(s *state) {
+			rval["Plocka upp en sten från marken."] = func(s *state) {
 				s.held()[smallRock.name] = true
+			}
+		}
+		if s.s.Values["greenSun"] == "yes" {
+			rval["Tryck in den lilla knappen."] = func(s *state) {
+				s.s.Values["buttonPressed"] = "yes"
 			}
 		}
 		return rval
 	}
 
-	lightOn := makeThing("Tänd ficklampa")
-	lightOff := makeThing("Släckt ficklampa")
 	defaultThings = map[string]bool{
 		lightOff.name: true,
 	}
 	lightOn.actions = func(s *state) map[string]func(*state) {
 		return map[string]func(*state){
-			"Släck ficklampan": func(s *state) {
+			"Släck ficklampan.": func(s *state) {
 				s.swapHeld(lightOn.name, lightOff.name)
 			},
 		}
 	}
 	lightOff.actions = func(s *state) map[string]func(*state) {
 		return map[string]func(*state){
-			"Tänd ficklampan": func(s *state) {
+			"Tänd ficklampan.": func(s *state) {
 				s.swapHeld(lightOff.name, lightOn.name)
 			},
 		}

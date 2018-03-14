@@ -158,6 +158,8 @@ func (ro *room) render(s *state) {
 		thingsUL = append(thingsUL, fmt.Sprintf("<li>%s</li>", thing))
 	}
 
+	delete(s.s.Values, "roomAction")
+	delete(s.s.Values, "thingAction")
 	s.save()
 
 	s.w.Header().Add("Content-Type", "text/html; charset=UTF-8")
