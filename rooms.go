@@ -21,10 +21,38 @@ func init() {
 				"Du har krupit in i en liten vrå bredvid biblioteket.",
 				"Den är precis stor nog för dig, här får inga drakar plats.",
 				"Det luktar lite unket, och det enda ljuset kommer in under dörren ut till biblioteket.",
+				"Du snubblar på tröskeln in i vrån och kommer åt en knapp på väggen, så att en hemlig dörr öppnas längst in i vrån.",
 			}
 		},
 	)
 	defaultRoom = start
+	corridor := makeRoom(
+		"Korridoren innanför vrån",
+		func(s *state) []string {
+			return []string{
+				"Du går genom en dammig och mörk gammal korridor.",
+				"Längs väggarna står murkna gamla möbler dammiga vita lakan liggande över.",
+				"I hörnen är stora spindelnät med jättestora spindlar i.",
+			}
+		},
+	)
+	ghostBedroom := makeRoom(
+		"Spöksovrummet",
+		func(s *state) []string {
+			rval := []string{
+				"Du är i en sovsal med våningssängar längs väggarna.",
+				"I sängarna sitter och ligger drösvis med spöken.",
+				"Spökerna skriker av glädje när de ser dig.",
+			}
+			if s.s.Values["roomAction"] == "Prata med spökena" {
+				rval = append(rval, "Det största och läskigaste spöket berättar att de inte vågat gå ut ur det här rummet på 200 år eftersom de är så rädda för draken.", "Nu är de jätteglada för att du kommit och kan skrämma bort draken från biblioteket.")
+			}
+			if s.s.Values["roomAction"] == "Berätta för spökena att draken smitit från biblioteket." {
+				rval = append(rval, "Spökena blir ännu gladare, och börjar skrika av glädje igen.", "Men, berättar det största och läskigaste spöket, vi undrar om du kunde hjälpa oss lite till?", "Draken har flytt till sin skattkammare, och vi vill gärna ha hela slottet för oss själva.", "Kan du kanske skrämma bort draken från skattkammaren också?", "Spöket ler som en bilförsäljare.")
+			}
+			return rval
+		},
+	)
 	castleLibrary := makeRoom(
 		"Spökbiblioteket",
 		func(s *state) []string {
@@ -119,6 +147,8 @@ func init() {
 					s.held()[sword.name] = true
 				},
 			}
+		} else if s.s.Values["dragonState"] == "gone" {
+			return map[string]func(*state){}
 		} else {
 			return map[string]func(*state){
 				"Slå draken med svärdet": func(s *state) {
@@ -128,7 +158,24 @@ func init() {
 		}
 	}
 	libraryNook.exits = func(s *state) []*room {
-		return []*room{castleLibrary}
+		return []*room{castleLibrary, corridor}
+	}
+	corridor.exits = func(s *state) []*room {
+		return []*room{libraryNook, ghostBedroom}
+	}
+	ghostBedroom.exits = func(s *state) []*room {
+		return []*room{corridor}
+	}
+	ghostBedroom.actions = func(s *state) map[string]func(*state) {
+		rval := map[string]func(*state){
+			"Prata med spökena": func(s *state) {
+			},
+		}
+		if s.s.Values["dragonState"] == "gone" {
+			rval["Berätta för spökena att draken smitit från biblioteket."] = func(s *state) {
+			}
+		}
+		return rval
 	}
 	smallRock.actions = func(s *state) map[string]func(*state) {
 		if s.s.Values["location"] == ghostCastle.title && s.held()[smallRock.name] {
