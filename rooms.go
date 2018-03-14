@@ -95,7 +95,11 @@ func init() {
 			rval := []string{
 				"Du står i ett jättestort bibliotek.",
 				"Det är bokhyllor och böcker så långt du kan se, och flera våningar högt.",
-				"Bredvid dig ser du en riddarrustning med ett svärd.",
+			}
+			if s.held()[sword.name] {
+				rval = append(rval, "Bredvid dig ser du en riddarrustning.")
+			} else {
+				rval = append(rval, "Bredvid dig ser du en riddarrustning med ett svärd.")
 			}
 			if s.s.Values["roomAction"] == "Ta svärdet från rustningen." {
 				rval = append(rval, "En av bokhyllorna glider undan med ett skrapande rasslande och du ser en liten dörr skymta fram bakom.")
@@ -112,6 +116,19 @@ func init() {
 						"Draken kommer emot dig. Den vrålar och du känner dess stinkande andedräkt.",
 					)
 				}
+			}
+			if s.s.Values["roomAction"] == "Leta efter böcker om zombieläkare." {
+				rval = append(
+					rval,
+					"Efter att du letat en stund hittar du en bok om läkare som blivit zombies.",
+					"I boken står det att alla läkare som blir zombies blir otroligt engagerade och seriösa i sitt yrke, och aldrig skulle lämna en patient i sticket.",
+				)
+			}
+			if s.s.Values["zombieState"] == "library" {
+				rval = append(
+					rval,
+					"Bland bokhyllorna vacklar en zombie med läkarrock och stetoskop omkring och stönar: -Vaaaarrrrr äääärrr patieeeenteeeen....",
+				)
 			}
 			return rval
 		},
@@ -152,6 +169,33 @@ func init() {
 			return desc
 		},
 	)
+	buffetRoom := makeRoom(
+		"Potatisbuffén",
+		func(s *state) []string {
+			s.s.Values["zombieSeen"] = "yes"
+			rval := []string{
+				"Du är i en stor matsal.",
+				"På långa bord är en enorm dignande potatisbuffé uppdukad.",
+				"Det finns stekt, kokt, råriven och grillad potatis. Bakad potatis, potatismos och potatisbullar.",
+			}
+			if s.s.Values["roomAction"] == "Säg till zombien att det hänt en olycka i biblioteket och att någon gjort illa sig där." {
+				rval = append(
+					rval,
+					"Zombien spärrar upp ögonen och stönar: -Måååste taaaa haaaaand ooooom patieeeeentttttt!",
+					"Sedan ramlar och raglar den uppför trappen och försvinner ur synhåll.",
+				)
+			} else {
+				if s.s.Values["zombieState"] != "library" {
+					rval = append(
+						rval,
+						"Vid borden går en zombie i vit rock och stetoskop runt och plockar bland potatisarna.",
+						"När den ser dig ger den ifrån sig ett lågt stönande morr och börjar stappla mot dig med utsträckta armar.",
+					)
+				}
+			}
+			return rval
+		},
+	)
 	cave := makeRoom(
 		"Grottan",
 		func(s *state) []string {
@@ -178,7 +222,23 @@ func init() {
 		return []*room{start}
 	}
 	darkStairs.exits = func(s *state) []*room {
-		return []*room{ghostCastle}
+		exits := []*room{ghostCastle}
+		if s.held()[lightOn.name] {
+			exits = append(exits, buffetRoom)
+		}
+		return exits
+	}
+	buffetRoom.exits = func(s *state) []*room {
+		return []*room{darkStairs}
+	}
+	buffetRoom.actions = func(s *state) map[string]func(*state) {
+		rval := map[string]func(*state){}
+		if s.s.Values["bookFound"] == "yes" {
+			rval["Säg till zombien att det hänt en olycka i biblioteket och att någon gjort illa sig där."] = func(s *state) {
+				s.s.Values["zombieState"] = "library"
+			}
+		}
+		return rval
 	}
 	ghostCastle.exits = func(s *state) []*room {
 		exits := []*room{start}
@@ -198,21 +258,24 @@ func init() {
 		}
 	}
 	castleLibrary.actions = func(s *state) map[string]func(*state) {
-		if !s.held()[sword.name] {
-			return map[string]func(*state){
-				"Ta svärdet från rustningen.": func(s *state) {
+		rval := map[string]func(*state){}
+		if s.s.Values["zombieState"] != "library" {
+			if !s.held()[sword.name] {
+				rval["Ta svärdet från rustningen."] = func(s *state) {
 					s.held()[sword.name] = true
-				},
-			}
-		} else if s.s.Values["dragonState"] == "gone" {
-			return map[string]func(*state){}
-		} else {
-			return map[string]func(*state){
-				"Slå draken med svärdet.": func(s *state) {
+				}
+			} else if s.s.Values["dragonState"] != "gone" {
+				rval["Slå draken med svärdet."] = func(s *state) {
 					s.s.Values["dragonState"] = "gone"
-				},
+				}
+			}
+			if s.s.Values["zombieSeen"] == "yes" {
+				rval["Leta efter böcker om zombieläkare."] = func(s *state) {
+					s.s.Values["bookFound"] = "yes"
+				}
 			}
 		}
+		return rval
 	}
 	libraryNook.exits = func(s *state) []*room {
 		return []*room{castleLibrary, corridor}
