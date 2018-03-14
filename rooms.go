@@ -33,7 +33,7 @@ func init() {
 		func(s *state) []string {
 			return []string{
 				"Du går genom en dammig och mörk gammal korridor.",
-				"Längs väggarna står murkna gamla möbler dammiga vita med lakan liggande över.",
+				"Längs väggarna står murkna gamla möbler med dammiga vita lakan liggande över.",
 				"I hörnen är stora spindelnät med jättestora spindlar i.",
 			}
 		},
@@ -51,7 +51,7 @@ func init() {
 				rval = []string{
 					"Du är i en sovsal med våningssängar längs väggarna.",
 					"I sängarna sitter och ligger drösvis med spöken.",
-					"Spökerna skriker av glädje när de ser dig.",
+					"Spökena skriker av glädje när de ser dig.",
 				}
 			}
 			if s.s.Values["roomAction"] == "Prata med spökena." {
@@ -140,7 +140,9 @@ func init() {
 		func(s *state) []string {
 			desc := []string{
 				"Under de höga tornen ser du höga fönster och ett par stora dörrar som vaktas av riddarstatyer.",
-				"Mellan riddarstatyerna ser du en nyckel i ett hål.",
+			}
+			if !s.held()[castleKey.name] {
+				desc = append(desc, "Mellan riddarstatyerna ser du en nyckel i ett hål.")
 			}
 			if s.s.Values["rockPos"] == "hole" {
 				desc = append(desc, "I hålet ligger också en liten sten.")
@@ -233,7 +235,7 @@ func init() {
 	}
 	buffetRoom.actions = func(s *state) map[string]func(*state) {
 		rval := map[string]func(*state){}
-		if s.s.Values["bookFound"] == "yes" {
+		if s.s.Values["bookFound"] == "yes" && s.s.Values["zombieState"] != "library" {
 			rval["Säg till zombien att det hänt en olycka i biblioteket och att någon gjort illa sig där."] = func(s *state) {
 				s.s.Values["zombieState"] = "library"
 			}
