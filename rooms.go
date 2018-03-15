@@ -13,7 +13,7 @@ func init() {
 				"Bredvid dig står ett ihåligt träd.",
 				"Bakom dig finns en klippa med en mörk grottöppning.",
 				"Inifrån grottan hörs ett dånande muller.",
-				"Framför ser du en grind, och höga torn bakom den.",
+				"Framför dig ser du en grind, och höga torn bakom den.",
 			}
 			if s.s.Values["roomAction"] == "Tryck in knappen i det ihåliga trädet." {
 				rval = append(rval, "Du sträcker in armen så långt du kan, men kan inte riktigt nå ner. Och knappen är liksom halvt gömd bakom en knöl i stammen. Du behöver något smalt och lite krokigt för att komma åt den!")
