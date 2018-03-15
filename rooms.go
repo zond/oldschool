@@ -64,24 +64,31 @@ func init() {
 				"Längs väggarna står rustningar i guld och silver, och i taket hänger kristallkronor med julgransdekorationer och små kottar dinglande i presentsnören.",
 				"Taket är så högt upp att du inte ens kan se det.",
 			}
-			if s.s.Values["treasureState"] == "dragonGone" {
+			if s.s.Values["roomAction"] == "Slå draken med svärdet." {
 				rval = append(
 					rval,
-					"Bland guldet ser du spår av draken som tidigare bodde här.",
-					"Du har befriat slottet från draken! Hurra!! Nu blir spökena glada.",
-					"Spöken behöver ju inte guld... du kanske kan ta med dig lite?",
+					"Draken väser av skräck, mumlar något som låter som 'neeeej, inte igeen!!', och flyger upp i mörkret och försvinner.",
 				)
+			}
+			if s.s.Values["treasureState"] == "dragonGone" {
+				if s.s.Values["roomAction"] != "Slå draken med svärdet." {
+					rval = append(
+						rval,
+						"Du har befriat slottet från draken! Hurra!! Nu blir spökena glada.",
+						"Spöken behöver ju inte guld... du kanske kan ta med dig lite?",
+					)
+				} else {
+					rval = append(
+						rval,
+						"Bland guldet ser du spår av draken som tidigare bodde här.",
+						"Spöken behöver ju inte guld... du kanske kan ta med dig lite?",
+					)
+				}
 			} else {
 				rval = append(
 					rval,
 					"Mitt i allt guldet vilar draken. Den ser väldigt arg ut!",
 					"Den väser, och ringlar mot dig!!!",
-				)
-			}
-			if s.s.Values["roomAction"] == "Slå draken med svärdet." {
-				rval = append(
-					rval,
-					"Draken väser av skräck, mumlar något som låter som 'neeeej, inte igeen!!', och flyger upp i mörkret och försvinner.",
 				)
 			}
 			if s.s.Values["roomAction"] == "Ta en näve guld och ädelstenar." {
