@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 
@@ -136,7 +137,7 @@ func (ro *room) render(s *state) {
 		}
 	}
 
-	exitsUL := []string{}
+	exitsUL := sort.StringSlice{}
 	for _, exit := range ro.exits(s) {
 		exitsUL = append(
 			exitsUL,
@@ -147,16 +148,18 @@ func (ro *room) render(s *state) {
 			),
 		)
 	}
+	sort.Sort(exitsUL)
 
 	descDIVs := []string{}
 	for _, line := range ro.desc(s) {
 		descDIVs = append(descDIVs, fmt.Sprintf("<div>%s</div>", line))
 	}
 
-	thingsUL := []string{}
+	thingsUL := sort.StringSlice{}
 	for thing := range s.held() {
 		thingsUL = append(thingsUL, fmt.Sprintf("<li>%s</li>", thing))
 	}
+	sort.Sort(thingsUL)
 
 	delete(s.s.Values, "roomAction")
 	delete(s.s.Values, "thingAction")
