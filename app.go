@@ -1,4 +1,4 @@
-package oldschool
+package main
 
 import (
 	"encoding/gob"
@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/sessions"
+	"google.golang.org/appengine"
 )
 
 var (
@@ -19,10 +20,6 @@ var (
 	defaultRoom   *room
 	defaultThings map[string]bool
 )
-
-func init() {
-	gob.Register(map[string]bool{})
-}
 
 type state struct {
 	w http.ResponseWriter
@@ -295,6 +292,8 @@ func root(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func init() {
+func main() {
+	gob.Register(map[string]bool{})
 	http.Handle("/", http.HandlerFunc(root))
+	appengine.Main()
 }

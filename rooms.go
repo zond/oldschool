@@ -1,4 +1,4 @@
-package oldschool
+package main
 
 func init() {
 	fork := makeThing("Potatisgaffel i nysilver")
